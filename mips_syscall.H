@@ -35,6 +35,18 @@ public:
   void set_int(int argn, int val);
   void return_from_syscall();
   void set_prog_args(int argc, char **argv);
+
+  void open();
+  void close();
+  void read();
+  void write();
+  void creat();
+  void lseek();
+  void isatty();
+  void sbrk();
+  void _exit();
+  void getcwd();
+  void getpagesize();
 };
 
 #endif

@@ -38,8 +38,8 @@ AC_ARCH(mips){
 
   ac_tlm2_nb_port  MEM:512M;
 
-  ac_icache   IC("2w", 512, 32, "wb", "fifo");
-  ac_dcache   DC("2w", 512, 32, "wb", "fifo");
+  ac_icache   IC("2w", 64, 8, "wt", "random");
+  ac_dcache   DC("2w", 64, 8, "wt", "random");
 
   ac_tlm2_intr_port intr_port;
 

@@ -34,6 +34,8 @@
  */
 
 #include "mips_syscall.H"
+#include <expio.h>
+#include <yapsc.h>
 
 // 'using namespace' statement to allow access to all
 // mips-specific datatypes
@@ -55,7 +57,7 @@ void mips_syscall::set_buffer(int argn, unsigned char* buf, unsigned int size)
 
   for (unsigned int i = 0; i<size; i++, addr++) {
     DATA_PORT->write_byte(addr, buf[i]);
-    //printf("\nDATA_PORT[%d]=%d", addr, buf[i]);
+    EXPIO_LOG_DBG("DATA_PORT[%d]=%d", addr, buf[i]);
 
   }
 }
@@ -66,7 +68,7 @@ void mips_syscall::set_buffer_noinvert(int argn, unsigned char* buf, unsigned in
 
   for (unsigned int i = 0; i<size; i+=4, addr+=4) {
     DATA_PORT->write(addr, *(unsigned int *) &buf[i]);
-    //printf("\nDATA_PORT_no[%d]=%d", addr, buf[i]);
+    EXPIO_LOG_DBG("DATA_PORT_no[%d]=%d", addr, buf[i]);
   }
 }
 
@@ -119,6 +121,159 @@ void mips_syscall::set_prog_args(int argc, char **argv)
   RB[5] = base - 120;
 
   procNumber ++;
+}
+
+void mips_syscall::open()
+{
+  DEBUG_SYSCALL("open");
+  unsigned char pathname[100];
+  get_buffer(0, pathname, 100);
+  int flags = get_int(1); correct_flags(&flags);
+  int mode = get_int(2);
+  int ret;
+  ret = yapsc_syscall_open((char*)pathname, flags, mode);
+  EXPIO_LOG_DBG("open\t%s %d %d = %d",pathname, flags, mode, ret);
+  set_int(0, ret);
+  return_from_syscall();
+}
+
+void mips_syscall::creat()
+{
+  DEBUG_SYSCALL("creat");
+  unsigned char pathname[100];
+  get_buffer(0, pathname, 100);
+  int mode = get_int(1);
+  int ret;
+    ret = yapsc_syscall_creat((char*)pathname, mode);
+  EXPIO_LOG_DBG("creat\t%s %d = %d",pathname, mode, ret);
+  set_int(0, ret);
+  return_from_syscall();
+}
+
+void mips_syscall::close()
+{
+  DEBUG_SYSCALL("close");
+  int fd = get_int(0);
+  int ret;
+  // Silently ignore attempts to close standard streams (newlib may try to do so when exiting)
+  if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO)
+    ret = 0;
+  else {
+	  ret = yapsc_syscall_close(fd);
+  }
+  EXPIO_LOG_DBG("close\t%d = %d", fd, ret);
+  set_int(0, ret);
+  return_from_syscall();
+}
+
+void mips_syscall::read()
+{
+  DEBUG_SYSCALL("read");
+  int fd = get_int(0);
+  unsigned count = get_int(2);
+  unsigned char *buf = (unsigned char*) malloc(count);
+  int ret;
+  ret = yapsc_syscall_read(fd, buf, count);
+  EXPIO_LOG_DBG("read\t%d %u = %d %s", fd, count, ret, buf);
+  set_buffer(1, buf, ret);
+  set_int(0, ret);
+  return_from_syscall();
+  free(buf);
+}
+
+void mips_syscall::write()
+{
+  DEBUG_SYSCALL("write");
+  int fd = get_int(0);
+  unsigned count = get_int(2);
+  unsigned char *buf = (unsigned char*) malloc(count);
+  get_buffer(1, buf, count);
+  int ret;
+  ret = yapsc_syscall_write(fd, buf, count);
+  EXPIO_LOG_DBG("write\t%d %u %s = %d", fd, count, buf, ret);
+  set_int(0, ret);
+  return_from_syscall();
+  free(buf);
+}
+
+void mips_syscall::lseek()
+{
+  DEBUG_SYSCALL("lseek");
+  int fd = get_int(0);
+  int offset = get_int(1);
+  int whence = get_int(2);
+  int ret;
+  ret = yapsc_syscall_lseek(fd, offset, whence);
+  EXPIO_LOG_DBG("lseek\t%d %d %d = %d", fd, offset, whence, ret);
+  set_int(0, ret);
+  return_from_syscall();
+}
+
+
+void mips_syscall::isatty()
+{
+  DEBUG_SYSCALL("isatty");
+  int desc = get_int(0);
+  int ret;
+  ret = yapsc_syscall_isatty(desc);
+  set_int(0, ret);
+  EXPIO_LOG_DBG("isatty\t%d = %d", desc, ret);
+  return_from_syscall();
+}
+
+void mips_syscall::sbrk()
+{
+  DEBUG_SYSCALL("sbrk");
+  unsigned int increment = get_int(0);
+  void *ret;
+
+  ret = yapsc_syscall_sbrk(increment);
+
+  set_int(0, *((int*)(&ret))); //FIXME
+  EXPIO_LOG_DBG("sbrk.\t + %u = %d", increment, ret);
+  return_from_syscall();
+}
+
+
+void mips_syscall::_exit()
+{
+  DEBUG_SYSCALL("_exit");
+  int ac_exit_status = get_int(0);
+
+  EXPIO_LOG_DBG("exit\t%d", ac_exit_status);
+  yapsc_syscall_exit(ac_exit_status);
+
+#ifdef USE_GDB
+  if (get_gdbstub()) (get_gdbstub())->exit(ac_exit_status);
+#endif /* USE_GDB */
+
+  stop(ac_exit_status);
+}
+
+void mips_syscall::getcwd()
+{
+  DEBUG_SYSCALL("getcwd");
+  unsigned size = get_int(1);
+  char *buf = (char*) malloc(size);
+  char *ret;
+  ret = yapsc_syscall_getcwd(buf, size);
+  set_buffer(0, (unsigned char*) buf, size); //FIXME
+  set_int(0, *((int*)(&ret))); //FIXME
+  EXPIO_LOG_DBG("getcwd\t%d = %l %s", size, ret, buf);
+  return_from_syscall();
+  free(buf);
+}
+
+void mips_syscall::getpagesize()
+{
+  DEBUG_SYSCALL("getpagesize");
+
+  //FIXME: page size changes depending the architecture
+  int ret = sysconf(_SC_PAGE_SIZE);
+  EXPIO_LOG_DBG("getpagesize\t= %d", ret);
+
+  set_int(0, ret);
+  return_from_syscall();
 }
 
 

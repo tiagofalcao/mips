@@ -38,9 +38,6 @@ AC_ARCH(mips){
 
   ac_tlm2_nb_port  MEM:512M;
 
-  ac_icache   IC("2w", 512, 32, "wb", "fifo");
-  ac_dcache   DC("2w", 512, 32, "wb", "fifo");
-
   ac_tlm2_intr_port intr_port;
 
   ac_regbank RB:32;
@@ -54,8 +51,5 @@ AC_ARCH(mips){
   ARCH_CTOR(mips) {
     ac_isa("mips_isa.ac");
     set_endian("big");
-
-    IC.bindTo(MEM);
-    DC.bindTo(MEM);
   };
 };

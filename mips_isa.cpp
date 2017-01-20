@@ -23,12 +23,12 @@
 #include  "mips_isa.H"
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
-
+#include "expio.h"
+#include "yapsc.h"
 
 //If you want debug information for this model, uncomment next line
 //#define DEBUG_MODEL
 #include "ac_debug_model.H"
-
 
 //!User defined macros to reference registers.
 #define Ra 31
@@ -39,13 +39,13 @@
 using namespace mips_parms;
 
 static int processors_started = 0;
-#define DEFAULT_STACK_SIZE (256*1024)
+#define DEFAULT_STACK_SIZE (256 * 1024)
 
 //!Generic instruction behavior method.
 void ac_behavior( instruction )
 { 
-   dbg_printf("----- PC=%#x ----- %lld\n", (int) ac_pc, ac_instr_counter);
-  //  dbg_printf("----- PC=%#x NPC=%#x ----- %lld\n", (int) ac_pc, (int)npc, ac_instr_counter);
+   EXPIO_LOG_DBG("----- PC=%#x ----- %lld", (int) ac_pc, ac_instr_counter);
+  //  EXPIO_LOG_DBG("----- PC=%#x NPC=%#x ----- %lld", (int) ac_pc, (int)npc, ac_instr_counter);
 #ifndef NO_NEED_PC_UPDATE
   ac_pc = npc;
   npc = ac_pc + 4;
@@ -60,7 +60,7 @@ void ac_behavior( Type_J ){}
 //!Behavior called before starting simulation
 void ac_behavior(begin)
 {
-  dbg_printf("@@@ begin behavior @@@\n");
+  EXPIO_LOG_DBG("@@@ begin behavior @@@");
   RB[0] = 0;
   npc = ac_pc + 4;
 
@@ -70,13 +70,15 @@ void ac_behavior(begin)
   hi = 0;
   lo = 0;
 
-  RB[29] =  AC_RAM_END - 1024 - processors_started++ * DEFAULT_STACK_SIZE;
+  EXPIO_LOG_DBG("Stack = %u", RB[29]);
+  RB[29] =  AC_RAM_END - 1024;
+  EXPIO_LOG_DBG("Stack = %u", RB[29]);
 }
 
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
-  dbg_printf("@@@ end behavior @@@\n");
+  EXPIO_LOG_DBG("@@@ end behavior @@@");
 }
 
 
@@ -84,30 +86,30 @@ void ac_behavior(end)
 void ac_behavior( lb )
 {
   char byte;
-  dbg_printf("lb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("lb r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   byte = DATA_PORT->read_byte(RB[rs]+ imm);
   RB[rt] = (ac_Sword)byte ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lbu behavior method.
 void ac_behavior( lbu )
 {
   unsigned char byte;
-  dbg_printf("lbu r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("lbu r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   byte = DATA_PORT->read_byte(RB[rs]+ imm);
   RB[rt] = byte ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lh behavior method.
 void ac_behavior( lh )
 {
   short int half;
-  dbg_printf("lh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("lh r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   half = DATA_PORT->read_half(RB[rs]+ imm);
   RB[rt] = (ac_Sword)half ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lhu behavior method.
@@ -116,21 +118,21 @@ void ac_behavior( lhu )
   unsigned short int  half;
   half = DATA_PORT->read_half(RB[rs]+ imm);
   RB[rt] = half ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lw behavior method.
 void ac_behavior( lw )
 {
-  dbg_printf("lw r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("lw r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   RB[rt] = DATA_PORT->read(RB[rs]+ imm);
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lwl behavior method.
 void ac_behavior( lwl )
 {
-  dbg_printf("lwl r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("lwl r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   unsigned int addr, offset;
   ac_Uword data;
 
@@ -140,13 +142,13 @@ void ac_behavior( lwl )
   data <<= offset;
   data |= RB[rt] & ((1<<offset)-1);
   RB[rt] = data;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lwr behavior method.
 void ac_behavior( lwr )
 {
-  dbg_printf("lwr r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("lwr r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   unsigned int addr, offset;
   ac_Uword data;
 
@@ -156,41 +158,41 @@ void ac_behavior( lwr )
   data >>= offset;
   data |= RB[rt] & (0xFFFFFFFF << (32-offset));
   RB[rt] = data;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction sb behavior method.
 void ac_behavior( sb )
 {
   unsigned char byte;
-  dbg_printf("sb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("sb r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   byte = RB[rt] & 0xFF;
   DATA_PORT->write_byte(RB[rs] + imm, byte);
-  dbg_printf("Result = %#x\n", (int) byte);
+  EXPIO_LOG_DBG("Result = %#x", (int) byte);
 };
 
 //!Instruction sh behavior method.
 void ac_behavior( sh )
 {
   unsigned short int half;
-  dbg_printf("sh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("sh r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   half = RB[rt] & 0xFFFF;
   DATA_PORT->write_half(RB[rs] + imm, half);
-  dbg_printf("Result = %#x\n", (int) half);
+  EXPIO_LOG_DBG("Result = %#x", (int) half);
 };
 
 //!Instruction sw behavior method.
 void ac_behavior( sw )
 {
-  dbg_printf("sw r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("sw r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   DATA_PORT->write(RB[rs] + imm, RB[rt]);
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction swl behavior method.
 void ac_behavior( swl )
 {
-  dbg_printf("swl r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("swl r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   unsigned int addr, offset;
   ac_Uword data;
 
@@ -200,13 +202,13 @@ void ac_behavior( swl )
   data >>= offset;
   data |= DATA_PORT->read(addr & 0xFFFFFFFC) & (0xFFFFFFFF << (32-offset));
   DATA_PORT->write(addr & 0xFFFFFFFC, data);
-  dbg_printf("Result = %#x\n", data);
+  EXPIO_LOG_DBG("Result = %#x", data);
 };
 
 //!Instruction swr behavior method.
 void ac_behavior( swr )
 {
-  dbg_printf("swr r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
+  EXPIO_LOG_DBG("swr r%d, %d(r%d)", rt, imm & 0xFFFF, rs);
   unsigned int addr, offset;
   ac_Uword data;
 
@@ -216,247 +218,247 @@ void ac_behavior( swr )
   data <<= offset;
   data |= DATA_PORT->read(addr & 0xFFFFFFFC) & ((1<<offset)-1);
   DATA_PORT->write(addr & 0xFFFFFFFC, data);
-  dbg_printf("Result = %#x\n", data);
+  EXPIO_LOG_DBG("Result = %#x", data);
 };
 
 //!Instruction addi behavior method.
 void ac_behavior( addi )
 {
-  dbg_printf("addi r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("addi r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   RB[rt] = RB[rs] + imm;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
   //Test overflow
   if ( ((RB[rs] & 0x80000000) == (imm & 0x80000000)) &&
        ((imm & 0x80000000) != (RB[rt] & 0x80000000)) ) {
-    fprintf(stderr, "EXCEPTION(addi): integer overflow.\n"); exit(EXIT_FAILURE);
+    fprintf(stderr, "EXCEPTION(addi): integer overflow."); exit(EXIT_FAILURE);
   }
 };
 
 //!Instruction addiu behavior method.
 void ac_behavior( addiu )
 {
-  dbg_printf("addiu r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("addiu r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   RB[rt] = RB[rs] + imm;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction slti behavior method.
 void ac_behavior( slti )
 {
-  dbg_printf("slti r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("slti r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   // Set the RD if RS< IMM
   if( (ac_Sword) RB[rs] < (ac_Sword) imm )
     RB[rt] = 1;
   // Else reset RD
   else
     RB[rt] = 0;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction sltiu behavior method.
 void ac_behavior( sltiu )
 {
-  dbg_printf("sltiu r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("sltiu r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   // Set the RD if RS< IMM
   if( (ac_Uword) RB[rs] < (ac_Uword) imm )
     RB[rt] = 1;
   // Else reset RD
   else
     RB[rt] = 0;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction andi behavior method.
 void ac_behavior( andi )
 {	
-  dbg_printf("andi r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("andi r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   RB[rt] = RB[rs] & (imm & 0xFFFF) ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction ori behavior method.
 void ac_behavior( ori )
 {	
-  dbg_printf("ori r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("ori r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   RB[rt] = RB[rs] | (imm & 0xFFFF) ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction xori behavior method.
 void ac_behavior( xori )
 {	
-  dbg_printf("xori r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("xori r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   RB[rt] = RB[rs] ^ (imm & 0xFFFF) ;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction lui behavior method.
 void ac_behavior( lui )
 {	
-  dbg_printf("lui r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("lui r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   // Load a constant in the upper 16 bits of a register
   // To achieve the desired behaviour, the constant was shifted 16 bits left
   // and moved to the target register ( rt )
   RB[rt] = imm << 16;
-  dbg_printf("Result = %#x\n", RB[rt]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rt]);
 };
 
 //!Instruction add behavior method.
 void ac_behavior( add )
 {
-  dbg_printf("add r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("add r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] + RB[rt];
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
   //Test overflow
   if ( ((RB[rs] & 0x80000000) == (RB[rd] & 0x80000000)) &&
        ((RB[rd] & 0x80000000) != (RB[rt] & 0x80000000)) ) {
-    fprintf(stderr, "EXCEPTION(add): integer overflow.\n"); exit(EXIT_FAILURE);
+    fprintf(stderr, "EXCEPTION(add): integer overflow."); exit(EXIT_FAILURE);
   }
 };
 
 //!Instruction addu behavior method.
 void ac_behavior( addu )
 {
-  dbg_printf("addu r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("addu r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] + RB[rt];
   //cout << "  RS: " << (unsigned int)RB[rs] << " RT: " << (unsigned int)RB[rt] << endl;
   //cout << "  Result =  " <<  (unsigned int)RB[rd] <<endl;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction sub behavior method.
 void ac_behavior( sub )
 {
-  dbg_printf("sub r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("sub r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] - RB[rt];
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
   //TODO: test integer overflow exception for sub
 };
 
 //!Instruction subu behavior method.
 void ac_behavior( subu )
 {
-  dbg_printf("subu r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("subu r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] - RB[rt];
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction slt behavior method.
 void ac_behavior( slt )
 {	
-  dbg_printf("slt r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("slt r%d, r%d, r%d", rd, rs, rt);
   // Set the RD if RS< RT
   if( (ac_Sword) RB[rs] < (ac_Sword) RB[rt] )
     RB[rd] = 1;
   // Else reset RD
   else
     RB[rd] = 0;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction sltu behavior method.
 void ac_behavior( sltu )
 {
-  dbg_printf("sltu r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("sltu r%d, r%d, r%d", rd, rs, rt);
   // Set the RD if RS < RT
   if( RB[rs] < RB[rt] )
     RB[rd] = 1;
   // Else reset RD
   else
     RB[rd] = 0;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction instr_and behavior method.
 void ac_behavior( instr_and )
 {
-  dbg_printf("instr_and r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("instr_and r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] & RB[rt];
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction instr_or behavior method.
 void ac_behavior( instr_or )
 {
-  dbg_printf("instr_or r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("instr_or r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] | RB[rt];
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction instr_xor behavior method.
 void ac_behavior( instr_xor )
 {
-  dbg_printf("instr_xor r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("instr_xor r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = RB[rs] ^ RB[rt];
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction instr_nor behavior method.
 void ac_behavior( instr_nor )
 {
-  dbg_printf("nor r%d, r%d, r%d\n", rd, rs, rt);
+  EXPIO_LOG_DBG("nor r%d, r%d, r%d", rd, rs, rt);
   RB[rd] = ~(RB[rs] | RB[rt]);
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction nop behavior method.
 void ac_behavior( nop )
 {  
-  dbg_printf("nop\n");
+  EXPIO_LOG_DBG("nop");
 };
 
 //!Instruction sll behavior method.
 void ac_behavior( sll )
 {  
-  dbg_printf("sll r%d, r%d, %d\n", rd, rs, shamt);
+  EXPIO_LOG_DBG("sll r%d, r%d, %d", rd, rs, shamt);
   RB[rd] = RB[rt] << shamt;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction srl behavior method.
 void ac_behavior( srl )
 {
-  dbg_printf("srl r%d, r%d, %d\n", rd, rs, shamt);
+  EXPIO_LOG_DBG("srl r%d, r%d, %d", rd, rs, shamt);
   RB[rd] = RB[rt] >> shamt;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction sra behavior method.
 void ac_behavior( sra )
 {
-  dbg_printf("sra r%d, r%d, %d\n", rd, rs, shamt);
+  EXPIO_LOG_DBG("sra r%d, r%d, %d", rd, rs, shamt);
   RB[rd] = (ac_Sword) RB[rt] >> shamt;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction sllv behavior method.
 void ac_behavior( sllv )
 {
-  dbg_printf("sllv r%d, r%d, r%d\n", rd, rt, rs);
+  EXPIO_LOG_DBG("sllv r%d, r%d, r%d", rd, rt, rs);
   RB[rd] = RB[rt] << (RB[rs] & 0x1F);
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction srlv behavior method.
 void ac_behavior( srlv )
 {
-  dbg_printf("srlv r%d, r%d, r%d\n", rd, rt, rs);
+  EXPIO_LOG_DBG("srlv r%d, r%d, r%d", rd, rt, rs);
   RB[rd] = RB[rt] >> (RB[rs] & 0x1F);
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction srav behavior method.
 void ac_behavior( srav )
 {
-  dbg_printf("srav r%d, r%d, r%d\n", rd, rt, rs);
+  EXPIO_LOG_DBG("srav r%d, r%d, r%d", rd, rt, rs);
   RB[rd] = (ac_Sword) RB[rt] >> (RB[rs] & 0x1F);
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction mult behavior method.
 void ac_behavior( mult )
 {
-  dbg_printf("mult r%d, r%d\n", rs, rt);
+  EXPIO_LOG_DBG("mult r%d, r%d", rs, rt);
 
   long long result;
   int half_result;
@@ -472,13 +474,13 @@ void ac_behavior( mult )
   // Register HI receives 32 most significant bits
   hi = half_result ;
 
-  dbg_printf("Result = %#llx\n", result);
+  EXPIO_LOG_DBG("Result = %#llx", result);
 };
 
 //!Instruction multu behavior method.
 void ac_behavior( multu )
 {
-  dbg_printf("multu r%d, r%d\n", rs, rt);
+  EXPIO_LOG_DBG("multu r%d, r%d", rs, rt);
 
   unsigned long long result;
   unsigned int half_result;
@@ -494,13 +496,13 @@ void ac_behavior( multu )
   // Register HI receives 32 most significant bits
   hi = half_result ;
 
-  dbg_printf("Result = %#llx\n", result);
+  EXPIO_LOG_DBG("Result = %#llx", result);
 };
 
 //!Instruction div behavior method.
 void ac_behavior( div )
 {
-  dbg_printf("div r%d, r%d\n", rs, rt);
+  EXPIO_LOG_DBG("div r%d, r%d", rs, rt);
   // Register LO receives quotient
   lo = (ac_Sword) RB[rs] / (ac_Sword) RB[rt];
   // Register HI receives remainder
@@ -510,7 +512,7 @@ void ac_behavior( div )
 //!Instruction divu behavior method.
 void ac_behavior( divu )
 {
-  dbg_printf("divu r%d, r%d\n", rs, rt);
+  EXPIO_LOG_DBG("divu r%d, r%d", rs, rt);
   // Register LO receives quotient
   lo = RB[rs] / RB[rt];
   // Register HI receives remainder
@@ -520,50 +522,50 @@ void ac_behavior( divu )
 //!Instruction mfhi behavior method.
 void ac_behavior( mfhi )
 {
-  dbg_printf("mfhi r%d\n", rd);
+  EXPIO_LOG_DBG("mfhi r%d", rd);
   RB[rd] = hi;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction mthi behavior method.
 void ac_behavior( mthi )
 {
-  dbg_printf("mthi r%d\n", rs);
+  EXPIO_LOG_DBG("mthi r%d", rs);
   hi = RB[rs];
-  dbg_printf("Result = %#x\n", (unsigned int) hi);
+  EXPIO_LOG_DBG("Result = %#x", (unsigned int) hi);
 };
 
 //!Instruction mflo behavior method.
 void ac_behavior( mflo )
 {
-  dbg_printf("mflo r%d\n", rd);
+  EXPIO_LOG_DBG("mflo r%d", rd);
   RB[rd] = lo;
-  dbg_printf("Result = %#x\n", RB[rd]);
+  EXPIO_LOG_DBG("Result = %#x", RB[rd]);
 };
 
 //!Instruction mtlo behavior method.
 void ac_behavior( mtlo )
 {
-  dbg_printf("mtlo r%d\n", rs);
+  EXPIO_LOG_DBG("mtlo r%d", rs);
   lo = RB[rs];
-  dbg_printf("Result = %#x\n", (unsigned int) lo);
+  EXPIO_LOG_DBG("Result = %#x", (unsigned int) lo);
 };
 
 //!Instruction j behavior method.
 void ac_behavior( j )
 {
-  dbg_printf("j %d\n", addr);
+  EXPIO_LOG_DBG("j %d", addr);
   addr = addr << 2;
 #ifndef NO_NEED_PC_UPDATE
   npc =  (ac_pc & 0xF0000000) | addr;
 #endif 
-  dbg_printf("Target = %#x\n", (ac_pc & 0xF0000000) | addr );
+  EXPIO_LOG_DBG("Target = %#x", (ac_pc & 0xF0000000) | addr );
 };
 
 //!Instruction jal behavior method.
 void ac_behavior( jal )
 {
-  dbg_printf("jal %d\n", addr);
+  EXPIO_LOG_DBG("jal %d", addr);
   // Save the value of PC + 8 (return address) in $ra ($31) and
   // jump to the address given by PC(31...28)||(addr<<2)
   // It must also flush the instructions that were loaded into the pipeline
@@ -574,150 +576,150 @@ void ac_behavior( jal )
   npc = (ac_pc & 0xF0000000) | addr;
 #endif 
 	
-  dbg_printf("Target = %#x\n", (ac_pc & 0xF0000000) | addr );
-  dbg_printf("Return = %#x\n", ac_pc+4);
+  EXPIO_LOG_DBG("Target = %#x", (ac_pc & 0xF0000000) | addr );
+  EXPIO_LOG_DBG("Return = %#x", ac_pc+4);
 };
 
 //!Instruction jr behavior method.
 void ac_behavior( jr )
 {
-  dbg_printf("jr r%d\n", rs);
+  EXPIO_LOG_DBG("jr r%d", rs);
   // Jump to the address stored on the register reg[RS]
   // It must also flush the instructions that were loaded into the pipeline
 #ifndef NO_NEED_PC_UPDATE
   npc = RB[rs], (void) 1;
 #endif 
-  dbg_printf("Target = %#x\n", RB[rs]);
+  EXPIO_LOG_DBG("Target = %#x", RB[rs]);
 };
 
 //!Instruction jalr behavior method.
 void ac_behavior( jalr )
 {
-  dbg_printf("jalr r%d, r%d\n", rd, rs);
+  EXPIO_LOG_DBG("jalr r%d, r%d", rd, rs);
   // Save the value of PC + 8(return address) in rd and
   // jump to the address given by [rs]
 
 #ifndef NO_NEED_PC_UPDATE
   npc = RB[rs], (void) 1;
 #endif 
-  dbg_printf("Target = %#x\n", RB[rs]);
+  EXPIO_LOG_DBG("Target = %#x", RB[rs]);
 
   if( rd == 0 )  //If rd is not defined use default
     rd = Ra;
   RB[rd] = ac_pc+4;
-  dbg_printf("Return = %#x\n", ac_pc+4);
+  EXPIO_LOG_DBG("Return = %#x", ac_pc+4);
 };
 
 //!Instruction beq behavior method.
 void ac_behavior( beq )
 {
-  dbg_printf("beq r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("beq r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   if( RB[rs] == RB[rt] ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
 };
 
 //!Instruction bne behavior method.
 void ac_behavior( bne )
 {	
-  dbg_printf("bne r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("bne r%d, r%d, %d", rt, rs, imm & 0xFFFF);
   if( RB[rs] != RB[rt] ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
 };
 
 //!Instruction blez behavior method.
 void ac_behavior( blez )
 {
-  dbg_printf("blez r%d, %d\n", rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("blez r%d, %d", rs, imm & 0xFFFF);
   if( (RB[rs] == 0 ) || (RB[rs]&0x80000000 ) ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2), (void) 1;
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
 };
 
 //!Instruction bgtz behavior method.
 void ac_behavior( bgtz )
 {
-  dbg_printf("bgtz r%d, %d\n", rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("bgtz r%d, %d", rs, imm & 0xFFFF);
   if( !(RB[rs] & 0x80000000) && (RB[rs]!=0) ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
 };
 
 //!Instruction bltz behavior method.
 void ac_behavior( bltz )
 {
-  dbg_printf("bltz r%d, %d\n", rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("bltz r%d, %d", rs, imm & 0xFFFF);
   if( RB[rs] & 0x80000000 ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
 };
 
 //!Instruction bgez behavior method.
 void ac_behavior( bgez )
 {
-  dbg_printf("bgez r%d, %d\n", rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("bgez r%d, %d", rs, imm & 0xFFFF);
   if( !(RB[rs] & 0x80000000) ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
 };
 
 //!Instruction bltzal behavior method.
 void ac_behavior( bltzal )
 {
-  dbg_printf("bltzal r%d, %d\n", rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("bltzal r%d, %d", rs, imm & 0xFFFF);
   RB[Ra] = ac_pc+4; //ac_pc is pc+4, we need pc+8
   if( RB[rs] & 0x80000000 ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
-  dbg_printf("Return = %#x\n", ac_pc+4);
+  EXPIO_LOG_DBG("Return = %#x", ac_pc+4);
 };
 
 //!Instruction bgezal behavior method.
 void ac_behavior( bgezal )
 {
-  dbg_printf("bgezal r%d, %d\n", rs, imm & 0xFFFF);
+  EXPIO_LOG_DBG("bgezal r%d, %d", rs, imm & 0xFFFF);
   RB[Ra] = ac_pc+4; //ac_pc is pc+4, we need pc+8
   if( !(RB[rs] & 0x80000000) ){
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
-    dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
+    EXPIO_LOG_DBG("Taken to %#x", ac_pc + (imm<<2));
   }	
-  dbg_printf("Return = %#x\n", ac_pc+4);
+  EXPIO_LOG_DBG("Return = %#x", ac_pc+4);
 };
 
 //!Instruction sys_call behavior method.
 void ac_behavior( sys_call )
 {
-  dbg_printf("syscall\n");
+  EXPIO_LOG_DBG("syscall");
   stop();
 }
 
 //!Instruction instr_break behavior method.
 void ac_behavior( instr_break )
 {
-  fprintf(stderr, "instr_break behavior not implemented.\n"); 
+  fprintf(stderr, "instr_break behavior not implemented."); 
   exit(EXIT_FAILURE);
 }
